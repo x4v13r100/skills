@@ -1,7 +1,7 @@
 ---
 name: sdd-flow
 description: >-
-  Aplica Spec-Driven Development (SDD) en proyectos de código. Se activa SOLO cuando el mensaje del usuario empieza explícitamente con uno de estos prefijos, "SDD-agregar", "SDD-bug", "SDD-refactor", "SDD-migracion", "SDD-optimizacion", "SDD-tests" o "SDD-investigacion" (mayúsculas/minúsculas indistinto). NO se activa por palabras sueltas como "agregar", "arreglar", "optimizar" o "migrar" sin ese prefijo — esas palabras solas activan comportamiento normal, no el flujo SDD. Cuando se activa, exige leer/crear la spec correspondiente al tipo de trabajo, definir arquitectura simple, proponer un plan sin implementar, esperar aprobación, y después verificar con tests, revisión anti-sobreingeniería, documentación, checkpoint y validación de tests (sioma-tests) antes de dar el trabajo por cerrado.
+  Aplica Spec-Driven Development (SDD) en proyectos de código. Se activa SOLO cuando el mensaje del usuario empieza explícitamente con uno de estos prefijos, "SDD-agregar", "SDD-bug", "SDD-refactor", "SDD-migracion", "SDD-optimizacion", "SDD-tests" o "SDD-investigacion" (mayúsculas/minúsculas indistinto). NO se activa por palabras sueltas como "agregar", "arreglar", "optimizar" o "migrar" sin ese prefijo — esas palabras solas activan comportamiento normal, no el flujo SDD. Cuando se activa, exige leer/crear la spec correspondiente al tipo de trabajo, definir arquitectura simple, proponer un plan sin implementar, esperar aprobación, y después verificar con tests, validar esos tests con sioma-tests, revisión anti-sobreingeniería, documentación y checkpoint antes de dar el trabajo por cerrado.
 ---
 
 # SDD Flow
@@ -248,7 +248,7 @@ casillas a marcar por archivo:
 **Cuándo priorizarlos sobre el guardrail de alcance:** si aplicar SOLID
 implicaría tocar algo fuera del plan aprobado (ej. partir una clase ya
 existente que no está en el alcance), no lo hagas en silencio — repórtalo
-como hallazgo para la Etapa 8 (`/code-review` o `/ponytail-review`), no lo
+como hallazgo para la Etapa 9 (`/code-review` o `/ponytail-review`), no lo
 mezcles con la implementación de esta etapa.
 
 **No es un passthrough para sobreingeniería:** Abierto/Cerrado y
@@ -281,7 +281,7 @@ Para `SDD-migracion`: incluye tests de integridad de datos (conteos,
 checksums, o comparación de muestras antes/después).
 
 Para `SDD-investigacion`: esta etapa no aplica — no hay tests, hay
-un documento de hallazgos (ver Etapa 9 adaptada).
+un documento de hallazgos (ver Etapa 10 adaptada).
 
 Si la cantidad de tests es menor a la de acceptance criteria, dilo
 explícitamente antes de seguir — no lo dejes pasar en silencio.
@@ -306,7 +306,49 @@ Etapa 8. Las pruebas manuales se generan al final, como último paso,
 para que el usuario las haga con calma sin que el resto del flujo
 quede esperando (ver "Pruebas manuales" al final de este documento).
 
-## Etapa 8 — Revisión (Ponytail + correctitud)
+## Etapa 8 — Validación de tests (sioma-tests)
+
+Va después de la verificación y antes de las revisiones, para que
+`/code-review` y `/ponytail-review` vean los tests ya validados. Aplica a
+TODA corrida de spec que haya producido o tocado tests (cualquier
+tipo salvo `SDD-investigacion`, que no tiene tests). No se ofrece ni se omite: se ejecuta siempre.
+
+1. Invoca la skill `sioma-tests` (repo `Sioma-app/sioma-skills`,
+   carpeta `sioma-tests/`) en modo **revisión** sobre los tests
+   nuevos o modificados por este trabajo. No los reescribas de cero:
+   audítalos contra el estándar.
+2. Que la revisión cubra, como mínimo: nombre con la regla de negocio,
+   Arrange/Act/Assert con un comportamiento por test, cobertura
+   positivo/negativo/frontera/destructivo (lo que no aplique va a
+   «sin cubrir», no se rellena), declaración de contra qué corre el
+   test (mock/memoria/BD real) y antipatrones (tests cáscara,
+   integración mockeada mal nombrada, tests deshabilitados).
+3. **Verificación por mutación** de los tests que protegen un criterio
+   de aceptación: rompe el comportamiento y confirma que el test se
+   pone rojo. Procedimiento seguro: solo si `git status` muestra el
+   archivo limpio, muta, corre, restaura con `git checkout -- <archivo>`
+   y confirma con `git diff` que quedó restaurado.
+4. Si hay hallazgos: corrige los tests y vuelve a correrlos (Etapa 7).
+   Si para corregir hay que cambiar código de producción, dilo
+   explícitamente y repite desde la Etapa 7.
+5. Guarda el resultado: se incluye en `docs/CIERRE-PROYECTO-XX.md`
+   (Etapa 11) con esta sección:
+
+```markdown
+## Validación de tests (sioma-tests)
+Tests revisados: [archivos]
+Hallazgos y correcciones: [lista o "ninguno"]
+Mutaciones probadas: [qué se rompió → qué test falló]
+Sin cubrir (y por qué): [lista o "nada"]
+```
+
+No sustituyas esta etapa por tu propio juicio presentado como
+equivalente: corre la skill de verdad. Si no está instalada, léela
+desde el repo (`gh api repos/Sioma-app/sioma-skills/contents/sioma-tests`)
+y sigue su flujo; si no puedes acceder, dilo y detente — no la des
+por hecha.
+
+## Etapa 9 — Revisión (Ponytail + correctitud)
 
 Dos revisiones con propósitos distintos — ninguna reemplaza a la otra:
 - **Ponytail** (`/ponytail-review`, `/ponytail-audit`, etc.) busca
@@ -428,10 +470,10 @@ confirma que no hubo hallazgos nuevos).
 formato comprimido de ponytail — no hace falta traducirlo. Guarda la
 salida tal cual en `docs/logs/code-review-<fecha>.log`. Si encontró
 algo, aplícalo (o corre `/code-review --fix`) y vuelve a correr los
-tests (Etapa 7) antes de seguir a la Etapa 9 — un hallazgo de
+tests (Etapa 7) antes de seguir a la Etapa 10 — un hallazgo de
 `/code-review` es un bug real, no una sugerencia de estilo.
 
-## Etapa 9 — Documentación
+## Etapa 10 — Documentación
 
 Al cerrar, genera o actualiza `README.md` con:
 
@@ -602,11 +644,11 @@ Adapta las secciones según el tipo de trabajo:
 - **SDD-refactor**: agrega el resultado de `/ponytail-gain` (líneas/
   complejidad ahorrada) como evidencia concreta del beneficio.
 
-## Etapa 10 — Checkpoint (cierre)
+## Etapa 11 — Checkpoint (cierre)
 
 No des el trabajo por cerrado hasta confirmar todo esto:
 
-- [ ] Etapas 1-9 en verde (o su equivalente para SDD-investigacion)
+- [ ] Etapas 1-10 en verde (o su equivalente para SDD-investigacion)
 - [ ] `/ponytail-debt` corrido (cualquier tipo que haya producido código,
       salvo SDD-investigacion) — si el trabajo dejó algún comentario
       `ponytail:` marcando un atajo deliberado, tiene que quedar en el
@@ -628,62 +670,23 @@ SDD-optimizacion / SDD-tests / SDD-investigacion]
 ## Estado de las etapas
 [Tabla o lista de las etapas aplicables, todas en verde]
 
+## Validación de tests (sioma-tests)
+[La sección de la Etapa 8; omitir en SDD-investigacion]
+
 ## Aprendizajes
 Qué aprendí sobre SDD:
 Qué aprendí sobre la tecnología:
 Qué haría distinto la próxima vez:
 ```
 
-Con el documento de cierre generado, sigue a la Etapa 11 — todavía no
-confirmes al usuario que el trabajo está listo para cerrarse.
+Solo después de esto, confirma al usuario que el trabajo está listo
+para cerrarse.
 
-## Etapa 11 — Validación de tests (sioma-tests) — último paso
-
-Es el último paso de TODA corrida de spec que haya producido o tocado
-tests (cualquier tipo salvo `SDD-investigacion`, que no tiene tests).
-No se ofrece ni se omite: se ejecuta siempre.
-
-1. Invoca la skill `sioma-tests` (repo `Sioma-app/sioma-skills`,
-   carpeta `sioma-tests/`) en modo **revisión** sobre los tests
-   nuevos o modificados por este trabajo. No los reescribas de cero:
-   audítalos contra el estándar.
-2. Que la revisión cubra, como mínimo: nombre con la regla de negocio,
-   Arrange/Act/Assert con un comportamiento por test, cobertura
-   positivo/negativo/frontera/destructivo (lo que no aplique va a
-   «sin cubrir», no se rellena), declaración de contra qué corre el
-   test (mock/memoria/BD real) y antipatrones (tests cáscara,
-   integración mockeada mal nombrada, tests deshabilitados).
-3. **Verificación por mutación** de los tests que protegen un criterio
-   de aceptación: rompe el comportamiento y confirma que el test se
-   pone rojo. Procedimiento seguro: solo si `git status` muestra el
-   archivo limpio, muta, corre, restaura con `git checkout -- <archivo>`
-   y confirma con `git diff` que quedó restaurado.
-4. Si hay hallazgos: corrige los tests y vuelve a correrlos (Etapa 7).
-   Si para corregir hay que cambiar código de producción, dilo
-   explícitamente y repite desde la Etapa 7.
-5. Agrega a `docs/CIERRE-PROYECTO-XX.md` una sección:
-
-```markdown
-## Validación de tests (sioma-tests)
-Tests revisados: [archivos]
-Hallazgos y correcciones: [lista o "ninguno"]
-Mutaciones probadas: [qué se rompió → qué test falló]
-Sin cubrir (y por qué): [lista o "nada"]
-```
-
-No sustituyas esta etapa por tu propio juicio presentado como
-equivalente: corre la skill de verdad. Si no está instalada, léela
-desde el repo (`gh api repos/Sioma-app/sioma-skills/contents/sioma-tests`)
-y sigue su flujo; si no puedes acceder, dilo y detente — no la des
-por hecha.
-
-Solo después de esta etapa, confirma al usuario que el trabajo está
-listo para cerrarse.
 
 ## Paso final — Pruebas manuales (para que el usuario las haga con calma)
 
-Este paso NO bloquea el cierre — el proyecto ya está cerrado (Etapas 10 y 11
-completas) cuando llegas aquí. Es el último entregable, para que el
+Este paso NO bloquea el cierre — el proyecto ya está cerrado (Etapa 11
+completa) cuando llegas aquí. Es el último entregable, para que el
 usuario verifique con sus propios ojos, a su propio ritmo, lo que los
 tests automáticos no pueden probar (LLMs externos, servicios de
 terceros, timing real, hardware).
